@@ -1,0 +1,15 @@
+server {
+    listen       ${NGINX_PORT};
+    server_name  ${NGINX_APP_HOST};
+
+    location / {
+        root                        /var/www/html;
+        index                       index.php index.html index.htm;
+        fastcgi_index               index.php;
+        fastcgi_pass                unix:/var/run/php-fpm/php-fpm.socket
+        include                     fastcgi_params;
+        fastcgi_param               SCRIPT_FILENAME    $document_root$fastcgi_script_name;
+        fastcgi_param               SCRIPT_NAME        $fastcgi_script_name;
+        fastcgi_connect_timeout     120s; 
+    }
+}
