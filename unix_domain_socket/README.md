@@ -25,9 +25,11 @@ make compose.up
 ```
 
 ## Grafanaからメトリクスを見る
-各コンポーネントを起動した後, ブラウザから`localhost:3000`にアクセスし, `HOME > Dashboards > FPMの情報`を開くことでメトリクスを見ることが出来ます.
+各コンポーネントを起動した後, ブラウザから`localhost:3000`にアクセスし, `HOME > Dashboards > FPMの情報`を開くことでメトリクスを見ることが出来ます（以下の画像はダッシュボードのイメージ）.
 
 username/passwordは, `admin/admin`です.
+
+<img src="./img/Dashboards.png" height="1000"/>
 
 ## 負荷テスト
 負荷テストは, 以下のコマンドで実行できます.  
