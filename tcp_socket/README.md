@@ -1,4 +1,4 @@
-/# PHP-FPM Metrics using tcp socket
+# PHP-FPM Metrics using tcp socket
 
 PHP-FPMとnginxの通信にTCP Socketを用いた環境の設定例です.  
 
