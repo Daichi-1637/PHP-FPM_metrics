@@ -1,0 +1,148 @@
+services:
+  # php-fpm ===============================================================================
+  php-fpm:
+    build:
+      context: ./php
+      dockerfile: Dockerfile
+      args:
+        image: php:8.4-fpm-alpine
+    container_name: php-fpm
+    cap_add:
+      - SYS_PTRACE
+    volumes:
+      - type: bind
+        source: ./php/php-fpm.d/zzz-docker.conf
+        target: /usr/local/etc/php-fpm.d/zzz-docker.conf
+        read_only: true
+      - type: bind
+        source: ./php/src
+        target: /var/www/html
+        read_only: true
+      - type: bind
+        source: php-fpm_socket_volume
+        target: /var/run/php-fpm
+        read_only: false
+
+  # nginx-app =================================================================================
+  nginx-app:
+    image: nginx:1.27.5-alpine-slim
+    container_name: nginx-app
+    ports:
+      - ${NGINX_APP_OUTER_PORT}:${NGINX_APP_INNER_PORT}
+    environment:
+      - NGINX_APP_HOST=${NGINX_APP_HOST}
+      - NGINX_PORT=${NGINX_APP_INNER_PORT}
+    volumes:
+      - type: bind
+        source: ./nginx/templates/default.conf.template
+        target: /etc/nginx/templates/default.conf.template
+        read_only: true
+    depends_on:
+      - php-fpm
+
+  # php-fpm_exporter =================================================================================
+  php-fpm_exporter:
+    image: hipages/php-fpm_exporter:2.2.0
+    container_name: php-fpm_exporter
+    ports:
+      - 9253:9253
+    environment:
+      - PHP_FPM_WEB_LISTEN_ADDRESS=:9253
+      - PHP_FPM_SCRAPE_URI=unix:///var/run/php-fpm/php-fpm-status.sock;/metrics
+    volumes:
+      - type: bind
+        source: php-fpm_socket_volume
+        target: /var/run/php-fpm
+        read_only: true 
+
+  # vmagent =================================================================================
+  vmagent:
+    image: victoriametrics/vmagent:v1.118.0
+    depends_on:
+      - victoriametrics
+      - nginx-app
+    ports:
+      - 8429:8429
+    environment:
+      - TARGET_HOST=php-fpm_exporter
+      - TARGET_PORT=9253
+    volumes:
+      - type: volume
+        source: vmagentdata
+        target: /vmagentdata
+        read_only: false
+      - type: bind
+        source: ./vmagent/prometheus-vm-cluster.yaml
+        target: /etc/prometheus/prometheus.yaml
+        read_only: true
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yaml"
+      - "--remoteWrite.url=http://victoriametrics:8428/api/v1/write"
+    restart: always
+
+  # victoria metrics =================================================================================
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.119.0
+    ports:
+      - 8428:8428
+    volumes:
+      - type: volume
+        source: vmdata
+        target: /storage
+        read_only: false
+    command:
+      - "--storageDataPath=/storage"
+      - "--httpListenAddr=:8428"
+    restart: always
+
+  # grafana =================================================================================
+  grafana:
+    image: grafana/grafana:11.5.0
+    depends_on:
+      - victoriametrics
+    ports:
+      - 3000:3000
+    restart: always
+    volumes:
+      - type: volume
+        source: grafanadata
+        target: /var/lib/grafana
+      - type: bind
+        source: ./grafana/provisioning/datasources/prometheus-datasource/datasource.yaml
+        target: /etc/grafana/provisioning/datasources/datasource.yaml
+        read_only: true
+      - type: bind
+        source: ./grafana/provisioning/dashboards
+        target: /etc/grafana/provisioning/dashboards
+        read_only: true
+      - type: bind
+        source: ./grafana/dashboards/php-fpm.json
+        target: /var/lib/grafana/dashboards/php-fpm.json
+        read_only: true
+      - type: bind
+        source: ./grafana/grafana.ini
+        target: /usr/local/etc/grafana/grafana.ini
+        read_only: true
+
+  # k6 =================================================================================
+  k6:
+    image: grafana/k6
+    depends_on:
+      - nginx-app
+    environment:
+      - HOST=nginx-app
+      - PORT=${NGINX_APP_INNER_PORT}
+    volumes:
+      - type: bind
+        source: ./k6/script.js
+        target: /home/k6/script.js
+        read_only: true
+    entrypoint: ["k6", "run", "/home/k6/script.js"]
+    profiles:
+      - performance-test
+
+volumes:
+  vmagentdata: {}
+  vmdata: {}
+  grafanadata: {}
+  php-fpm_socket_volume: {}
