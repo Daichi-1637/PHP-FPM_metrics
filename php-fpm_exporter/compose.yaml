@@ -120,6 +120,9 @@ services:
         target: /var/lib/grafana/dashboards/php-fpm.json
         read_only: true
       - type: bind
+        source: ./grafana/dashboards/php-fpm_exporter.json
+        target: /var/lib/grafana/dashboards/php-fpm_exporter.json
+      - type: bind
         source: ./grafana/grafana.ini
         target: /usr/local/etc/grafana/grafana.ini
         read_only: true
