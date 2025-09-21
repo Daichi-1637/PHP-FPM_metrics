@@ -77,7 +77,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "bool_yes_no"
         },
         "overrides": []
       },
@@ -770,7 +771,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
       },
